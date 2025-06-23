@@ -27,7 +27,7 @@ def model(coord, tet, amp=1):
 
 
 Dim = 2
-time = 100
+time = 1000
 
 # creating data
 #np.random.seed(0)
