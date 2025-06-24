@@ -207,7 +207,7 @@ def GetNextOptimum(X, y, c, t, Exp, OptThresh, ControlThresh, nMC, sigMC, limitM
         GpredC, SpredC = GPY.predict(np.concatenate((OptimX, np.asarray([0.]))).reshape(-1, 1).T, return_std=True)
 
         risk[0] = NormalDist(mu=GpredY, sigma=SpredY).cdf(OptThresh) # may need double check
-        risk[1] = 1 - NormalDist(mu=GpredC, sigma=SpredC).cdf(ControlThresh)
+        risk[1] = NormalDist(mu=GpredC, sigma=SpredC).cdf(ControlThresh)
 
 
         return OptimX, risk
