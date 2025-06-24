@@ -59,6 +59,7 @@ coord = np.zeros([Dim+1, time])
 timeVect = np.zeros(time)
 evalFunc = np.zeros(time)
 evalControl = np.zeros(time)
+risk = np.zeros([1000, 2])
 
 
 # get best worse most stable most unstable paths to see how it goes.
@@ -79,7 +80,7 @@ timeDelay = .1
 # setting the memory of the system
 Mem = 50
 # defining the kernel for the gaussian processes
-kernel = .5 * Matern(length_scale=.7, nu=2.5)
+kernel = Matern(length_scale=.7, nu=2.5)
 
 
 
@@ -100,9 +101,9 @@ if Dim == 2:
         Amax[k] = np.unravel_index(np.argmax(TotFunc[:, :, k] * (TotCont[:, :, k] < 0.05)), TotFunc[:, :, k].shape)
 
 # system starts here
-for t in range(1000):
+for t in range(time):
 
-    print('runing', t+1, '/1000')
+    print('runing', t+1, ' / ', time)
     if t < 15:# first random points
         coord[0:Dim, t] = np.random.rand(Dim)*10
         coord[Dim, t] = t
@@ -111,17 +112,17 @@ for t in range(1000):
     else:
         if t < Mem: # before the memory buffer is full
             # getting the new coordinates to evaluate
-            coord[0:Dim, t] = Opt.GetNextOptimum(coord[0:Dim, 0:t].T, evalFunc[0:t], evalControl[0:t],
-                                                 timeVect[0:t], .5, 0.5, 0.05, 100, 0.008, 100, kernel, 0.001, bounds)
+            coord[0:Dim, t], risk[t] = Opt.GetNextOptimum(coord[0:Dim, 0:t].T, evalFunc[0:t], evalControl[0:t],
+                                                 timeVect[0:t], .5, 0.5, 0.05, 100, 0.008, 100, kernel, 0.001, bounds, rtnRisk = True)
             # adding the time value to coordinate
             coord[Dim, 0:t] = t
             # updating the time since collection for every past evaluation
             timeVect[0:t] += timeDelay
 
         else: # once the memory buffer is full
-            coord[0:Dim, t] = Opt.GetNextOptimum(coord[0:Dim, t-Mem:t].T, evalFunc[t-Mem:t], evalControl[t-Mem:t],
+            coord[0:Dim, t], risk[t] = Opt.GetNextOptimum(coord[0:Dim, t-Mem:t].T, evalFunc[t-Mem:t], evalControl[t-Mem:t],
                                                  timeVect[t-Mem:t], .5, 0.5, 0.05, 100, 0.008, 100, kernel, 0.001,
-                                                 bounds)
+                                                 bounds, rtnRisk = True)
             coord[Dim, t] = t
             timeVect[0:t] += timeDelay
 
@@ -135,24 +136,29 @@ for t in range(1000):
     if t > 15:
         print('Objfail', np.sum(evalFunc[16:t+1] < 0.5))
         print('Confail', np.sum(evalControl[16:t+1] > 0.05))
+        print('risk: ', risk[t])
 
-if Dim ==2:
+if Dim == 2:
 
     plt.figure()
     plt.plot(MaxFunc, 'k--')
-    plt.plot(MinFunc, 'k--')
     plt.plot(evalFunc, 'k')
     plt.plot(np.ones(len(evalFunc))*.5, 'r')
+    plt.plot(risk[:, 0], 'b')
+    plt.plot(MinFunc, 'k--')
     plt.xlabel('time')
     plt.ylabel('Efficiency')
+    plt.legend([r'min & max', r'Result', r'Func Threshold', r'estimated risk'])
 
     plt.figure()
     plt.plot(MaxCont, 'k--')
-    plt.plot(MinCont, 'k--')
     plt.plot(evalControl, 'k')
     plt.plot(np.ones(len(evalFunc))*.05, 'r')
+    plt.plot(risk[:, 1]/10, 'b')
+    plt.plot(MinCont, 'k--')
     plt.xlabel('time')
     plt.ylabel('Control function')
+    plt.legend([r'min & max', r'Result', r'Control Threshold', r'estimated risk / 10'])
 
 
     plt.figure()
@@ -166,6 +172,8 @@ if Dim ==2:
     plt.plot(Amax[:, 0] / 10.)
     plt.xlabel('time')
     plt.ylabel('x2')
+    plt.title('Coordinate')
+    plt.legend(['Estimator', 'Real coordinates'])
 
 plt.show()
 
