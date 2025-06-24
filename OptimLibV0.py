@@ -204,10 +204,10 @@ def GetNextOptimum(X, y, c, t, Exp, OptThresh, ControlThresh, nMC, sigMC, limitM
     if rtnRisk:
         # Evaluating the risks of the proposed solution
         GpredY, SpredY = GPY.predict(np.concatenate((OptimX, np.asarray([0.]))).reshape(-1, 1).T, return_std=True)
-        GpredC, SpredC = GPY.predict(np.concatenate((OptimX, np.asarray([0.]))).reshape(-1, 1).T, return_std=True)
+        GpredC, SpredC = GPC.predict(np.concatenate((OptimX, np.asarray([0.]))).reshape(-1, 1).T, return_std=True)
 
         risk[0] = NormalDist(mu=GpredY, sigma=SpredY).cdf(OptThresh) # may need double check
-        risk[1] = NormalDist(mu=GpredC, sigma=SpredC).cdf(ControlThresh)
+        risk[1] = 1 - NormalDist(mu=GpredC, sigma=SpredC).cdf(ControlThresh)
 
 
         return OptimX, risk
