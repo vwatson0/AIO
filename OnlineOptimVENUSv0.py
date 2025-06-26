@@ -273,7 +273,9 @@ Xdata = np.array([[0.2, 0.7],
                   [0.6, 0.5],
                   [0.2, 0.4],
                   [1.0, 0.8]])
-timeVect = np.zeros(len(Xdata)) # intitializing time vector
+
+maxIter = 30  # DST vary this
+timeVect = np.zeros(len(Xdata)+maxIter) # intitializing time vector
 inittime = time.time()
 # len(Xdata) blackboxcalls to get Ydata
 ninit = len(Xdata)
@@ -290,7 +292,7 @@ XdataSpaceDimension = 2
 # vwatson june 26 bounds (normalized) for search space
 bounds = np.zeros([XdataSpaceDimension, 2])
 bounds[:, 1] = np.ones(len(bounds))*1
-maxIter = 30  # DST vary this
+
 ExpBias = .5
 # initializing kernel
 Klen = np.ones(XdataSpaceDimension) * .1
@@ -315,7 +317,7 @@ evalControl = np.zeros(maxIter)
 evalControl[0:len(Xdata)] = Ydata
 
 
-for t in range(maxIter) :
+for t in range(maxIter):
 
     if t < Mem :  # before the memory buffer is full
         # getting the new coordinates to evaluate
@@ -324,14 +326,14 @@ for t in range(maxIter) :
                                                        timeVect[0 :t], .5, 0.5, 0.05, 100, 0.01, 100, Klen, 0.001,
                                                        bounds, rtnRisk=True)
         # adding the time value to coordinate
-        coord[Dim, 0 :t] = t
+        coord[Dim, 0:t] = t
         # updating the time since collection for every past evaluation
         querytime = time.time()
-        timeVect[0 :t] += (querytime - inittime)
+        timeVect[0:t] += (querytime - inittime)
         inittime = querytime
 
     else :  # once the memory buffer is full
-        coord[0 :Dim, t], risk[t] = Opt.GetNextOptimum(coord[0 :Dim, t - Mem :t].T, evalFunc[t - Mem :t],
+        coord[0:Dim, t], risk[t] = Opt.GetNextOptimum(coord[0 :Dim, t - Mem :t].T, evalFunc[t - Mem :t],
                                                        evalControl[t - Mem :t],
                                                        timeVect[t - Mem :t], .5, 0.5, 0.05, 100, 0.01, 100, Klen,
                                                        0.001,
@@ -346,7 +348,10 @@ for t in range(maxIter) :
     nextC = std/nextY # getting stasbility vwatons june 26
 
     Ydata = np.concatenate((Ydata, [nextY]))
+    evalFunc[t] = nextY
     Cdata = np.concatenate((Cdata, [nextC]))
+    evalControl[t] = nextC
+    Xdata = np.concatenate((Xdata, [coord[0:Dim, t]]))
 
     # randomly modifying the Kernel length along dimensions where Cov is too small
 
