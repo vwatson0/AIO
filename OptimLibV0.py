@@ -190,7 +190,7 @@ def GetNextOptimum(X, y, c, t, Exp, OptThresh, ControlThresh, nMC, sigMC, limitM
      ControlThresh is the threshold over which we do not wish c
      nMC is the number of Markov Chains generated to evaluate the Gaussian processes around the current functioning point
      sigMC is the standard deviation determining how far the next point can fall from the previous in the MC
-     limitMC is the nummber of max iteration for each MC if it doesn't find an acceptable solution
+     limitMC is the number of max iteration for each MC if it doesn't find an acceptable solution
      kernel and alpha are parameters of the gaussian processes
      bounds is a Nx2 matrix containing the limits of the space search for each parameter
      rtnRisk id a bool determining if the user wants to get the risks associated with the next parameter coordinates.

@@ -208,7 +208,7 @@ def black_box_function(settingsN) :
             if CntrNeverSettle > MaxIter :  # Mod vwatson KF June5 | maxed time system never settled
                 settled = True  # Mod vwatson KF June5
                 print('System could not settle')  # Mod vwatson KF June5
-        # Exteacting the data # Mod vwatson KF June5
+        # Extracting the data # Mod vwatson KF June5
         v_mean = KF.X[0]  # Mod vwatson KF June5
         v_std = KF.Sig[0]  # Mod vwatson KF June5
     ##
@@ -274,7 +274,7 @@ Xdata = np.array([[0.2, 0.7],
                   [0.2, 0.4],
                   [1.0, 0.8]])
 
-maxIter = 30  # DST vary this
+maxIter = 30  # DST vary this #vwatson moved that up because needed for time vector
 timeVect = np.zeros(len(Xdata)+maxIter) # intitializing time vector
 inittime = time.time()
 # len(Xdata) blackboxcalls to get Ydata
@@ -282,7 +282,7 @@ ninit = len(Xdata)
 Ydata = np.zeros(ninit)
 Cdata = np.zeros(ninit)
 for i in range(ninit) :
-    Ydata[i], std = black_box_function(np.array([Xdata[i, 0], Xdata[i, 1]]))
+    Ydata[i], std = black_box_function(np.array([Xdata[i, 0], Xdata[i, 1]])) #added the extraction of std to blackboxfunc  vwatson june 26
     Cdata[i] = std/Ydata[i] # modification vwatson june 26 control stability value
     querytime = time.time()
     timeVect[0: i+1] += (querytime-inittime) # incrementing time vector
@@ -293,54 +293,63 @@ XdataSpaceDimension = 2
 bounds = np.zeros([XdataSpaceDimension, 2])
 bounds[:, 1] = np.ones(len(bounds))*1
 
-ExpBias = .5
-# initializing kernel
-Klen = np.ones(XdataSpaceDimension) * .1
 
-Cov = np.zeros([maxIter, XdataSpaceDimension])
+
+
+Cov = np.zeros([maxIter, XdataSpaceDimension]) # storing covariance vectors vwatson june 26
 
 kname = 'data/klen_' + str(int(tstart))
 kk = open(kname, 'w')
 
 Mem  = 50 # Memory to calculate the Gaussian Process
-risk = np.zeros([maxIter, 2])
-coord = np.zeros([len(Xdata[0])+1, maxIter + len(Xdata)])
+risk = np.zeros([maxIter, 2]) # store the evaluated risk of [0] < funcThresold and [1] > control threshold
+coord = np.zeros([len(Xdata[0])+1, maxIter + len(Xdata)]) # store coordinates
 
 coord[0:len(Xdata[0]), 0: len(Xdata)] = Xdata
-coord[len(Xdata[0]), 0: len(Xdata)] = timeVect[0: len(Xdata)]
+coord[len(Xdata[0]), 0: len(Xdata)] = - np.arrange(len(Xdata)) - 1  # set negative time indices for initialization
 Dim = len(Xdata[0])
 
-evalFunc = np.zeros(maxIter)
+evalFunc = np.zeros(maxIter) # store evaluations of the objective function vwatson june 26
 evalFunc[0:len(Xdata)] = Ydata
 
-evalControl = np.zeros(maxIter)
-evalControl[0:len(Xdata)] = Ydata
+evalControl = np.zeros(maxIter) # store evaluations of the control (stability) function vwatson june 26
+evalControl[0:len(Xdata)] = Cdata
 
+
+# Settings for Bayesian Optimizer vwatson june 26
+ExpBias = .5 # exploration vs exploitation bias
+OptThresh = .5 # min acceptable value for beam current (needs set Damon)
+ControlThresh = .05 # max value for control function (stability 5%)
+nMC = 100 # number of markov chains for the optimization of the Acquisition function
+sigMC = 0.01 # sigma for generation distribution of the markov chain
+limitMC = 100 # max iterations for Markov chain to get to a maximum
+alpha = 0.001 # alpha for kernel calculation
+# initializing kernel
+Klen = np.ones(XdataSpaceDimension) * .1
 
 for t in range(maxIter):
 
     if t < Mem :  # before the memory buffer is full
         # getting the new coordinates to evaluate
 
-        coord[0:Dim, t], risk[t] = Opt.GetNextOptimum(coord[0 :Dim, 0 :t].T, evalFunc[0 :t], evalControl[0 :t],
-                                                       timeVect[0 :t], .5, 0.5, 0.05, 100, 0.01, 100, Klen, 0.001,
+        coord[0:Dim, t], risk[t] = Opt.GetNextOptimum(coord[0:Dim, 0:t].T, evalFunc[0:t], evalControl[0:t],
+                                                       timeVect[0 :t], ExpBias, OptThresh, ControlThresh, nMC, sigMC, limitMC, Klen, alpha,
                                                        bounds, rtnRisk=True)
         # adding the time value to coordinate
-        coord[Dim, 0:t] = t
+        coord[Dim, t] = t
         # updating the time since collection for every past evaluation
         querytime = time.time()
         timeVect[0:t] += (querytime - inittime)
         inittime = querytime
 
     else :  # once the memory buffer is full
-        coord[0:Dim, t], risk[t] = Opt.GetNextOptimum(coord[0 :Dim, t - Mem :t].T, evalFunc[t - Mem :t],
-                                                       evalControl[t - Mem :t],
-                                                       timeVect[t - Mem :t], .5, 0.5, 0.05, 100, 0.01, 100, Klen,
-                                                       0.001,
+        coord[0:Dim, t], risk[t] = Opt.GetNextOptimum(coord[0 :Dim, t - Mem:t].T, evalFunc[t - Mem :t],
+                                                       evalControl[t - Mem:t],
+                                                       timeVect[t - Mem:t], ExpBias, OptThresh, ControlThresh, nMC, sigMC, limitMC, Klen, alpha,
                                                        bounds, rtnRisk=True)
         coord[Dim, t] = t
         querytime = time.time()
-        timeVect[0 :t] += (querytime - inittime)
+        timeVect[0:t] += (querytime - inittime)
         inittime = querytime
 
 
